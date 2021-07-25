@@ -1,5 +1,6 @@
 /*
-    Code for a remote controller 
+    Code for a remote controller.
+    Does this work?
 */
 #include <RF24.h>
 
@@ -53,12 +54,6 @@ void loop(){
     else {
         ss = 'F';
     }
-
-    digitalWrite(LED_PIN, HIGH);
     sprintf(packet, "%c.%04d.%04d", ss, x_value, y_value);
-    delay(500);
-    digitalWrite(LED_PIN, LOW);
-    delay(500);
-    Serial.println(packet);
     radio.write(&packet, sizeof(packet));
 }

@@ -1,28 +1,41 @@
 /*
-    Code for a remote controller 
+    This is the code for a remote controlled 
+    car. 
 */
 #include <RF24.h>
 
 // RF object.
 RF24 radio(9, 10);
-#define F_LED 8
-#define B_LED 7
-#define L_LED 6
-#define R_LED 5
-#define S_PIN 2
-#define R_PIN 0
+
+// Motor Pins
+#define ENA A0
+#define ENB A1
+
+#define LEFT_REV 8
+#define LEFT_FWD 7
+
+#define RIGHT_REV 4
+#define RIGHT_FWD 3
+
+// Analog stick mappings.
+int X_VEL = 0;
+int Y_VEL = 0;
+int STATE = 0;
 
 const byte ADDR[6] = "00001";
 
 void setup(){
     radio.begin();
     Serial.begin(9600);
+    
+    pinMode(LED_BUILTIN, OUTPUT);
 
-    for(int i = 8; i <= 5; i++){
-      pinMode(i, OUTPUT);
-    }
-    pinMode(S_PIN, OUTPUT);
-    pinMode(R_PIN, OUTPUT);
+    pinMode(ENA, OUTPUT);
+    pinMode(ENB, OUTPUT);
+    pinMode(LEFT_FWD, OUTPUT);
+    pinMode(LEFT_REV, OUTPUT);
+    pinMode(RIGHT_FWD, OUTPUT);
+    pinMode(RIGHT_REV, OUTPUT);
 
     radio.openReadingPipe(0, ADDR);
     radio.startListening();
@@ -34,13 +47,87 @@ void loop(){
     char packet[12];
 
     if(radio.available()){
-      digitalWrite(R_PIN, HIGH);
+      
       radio.read(&packet, sizeof(packet));
+      digitalWrite(LED_BUILTIN, HIGH);
       Serial.println(packet);
-      delay(500);
-      digitalWrite(R_PIN, LOW);
-      delay(500);
+
+      // Read the packet and drive the car. 
+      process_packet(packet, STATE, X_VEL, Y_VEL);
+      move_car(X_VEL, Y_VEL);
     }
-    
-    
+}
+
+void process_packet(char *packet, int &state, int &x, int &y) {
+  // Derive state, x, and y from packet. 
+  // packet is a char* or size 12 formatted as:
+  // S.XXXX.YYYY
+
+  char S;
+  char X[5]; 
+  char Y[5];
+
+  S = packet[0];
+  
+  strncpy(X, packet + 2, 4);
+  X[4] = '\0';
+
+  strncpy(Y, packet + 7, 4);
+  Y[4] = '\0';
+
+  if (S == 'T') state = 1;
+  else state = 0;
+
+  x = atoi(X);
+  y = atoi(Y);
+}
+
+void move_car(int x, int y) {
+
+  int left_speed  = abs(map(y, -512, 512, -250, 250));
+  int right_speed = abs(map(y, -512, 512, -250, 250));
+
+  int x_mapped = abs(map(x, -512, 512, -250, 250));
+
+  // Determine if we're moving forwards or backwards. 
+  if (y > 20) {
+      digitalWrite(LEFT_FWD, HIGH);
+      digitalWrite(RIGHT_FWD, HIGH);
+
+      digitalWrite(LEFT_REV, LOW);
+      digitalWrite(RIGHT_REV, LOW);
+  }
+  else if (y < -20){
+      digitalWrite(LEFT_FWD, LOW);
+      digitalWrite(RIGHT_FWD, LOW);
+
+      digitalWrite(LEFT_REV, HIGH);
+      digitalWrite(RIGHT_REV, HIGH);
+  }
+  else {
+      left_speed = 0;
+      right_speed = 0;
+  }
+
+  // Left and right movement.
+  if (x > 20) {
+    // If we're going right then add to left
+    // and subtract from the right.
+    left_speed  += x_mapped;
+    right_speed -= x_mapped;
+
+    if(left_speed > 250) left_speed  = 250;
+    if(right_speed < 0 ) right_speed = 0;
+  }
+  else if (x < -20){
+    // Opposite for left turns. 
+    left_speed  -= x_mapped;
+    right_speed += x_mapped;
+
+    if(right_speed > 250) right_speed  = 250;
+    if(left_speed < 0 ) left_speed = 0;
+  }
+  
+  analogWrite(ENA, left_speed);
+  analogWrite(ENB, right_speed);
 }
