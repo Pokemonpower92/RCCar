@@ -22,6 +22,8 @@ int x_value = 0;
 
 const byte ADDR[6] = "00001";
 
+// S.XXXX.YYYY
+char packet[12];
 void setup(){
     radio.begin();
     Serial.begin(9600);
@@ -30,15 +32,15 @@ void setup(){
     pinMode(X_PIN, INPUT);
     pinMode(S_PIN, INPUT);
     pinMode(LED_PIN, OUTPUT);
-
+    
+    radio.setPayloadSize(sizeof(packet));
     radio.openWritingPipe(ADDR);
     radio.stopListening();
     Serial.println("Contoller starting.");
 }
 
 void loop(){
-    // S.XXXX.YYYY
-    char packet[12];
+
     char ss; 
 
     y_state = analogRead(Y_PIN);

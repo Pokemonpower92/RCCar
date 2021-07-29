@@ -22,8 +22,10 @@ int X_VEL = 0;
 int Y_VEL = 0;
 int STATE = 0;
 
-const byte ADDR[6] = "00001";
+uint8_t address[][6] = {"00001"};
 
+// S.XXXX.YYYY
+char packet[12];
 void setup(){
     radio.begin();
     Serial.begin(9600);
@@ -37,18 +39,16 @@ void setup(){
     pinMode(RIGHT_FWD, OUTPUT);
     pinMode(RIGHT_REV, OUTPUT);
 
-    radio.openReadingPipe(0, ADDR);
+    radio.setPayloadSize(sizeof(packet));
+    radio.openReadingPipe(1, address[0]);
     radio.startListening();
     Serial.println("Receiver starting.");
 }
 
 void loop(){
-    // S.XXXX.YYYY
-    char packet[12];
-
     if(radio.available()){
-      
-      radio.read(&packet, sizeof(packet));
+      uint8_t bytes = radio.getPayloadSize();
+      radio.read(&packet, bytes);
       digitalWrite(LED_BUILTIN, HIGH);
       Serial.println(packet);
 
